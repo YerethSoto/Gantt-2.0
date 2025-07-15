@@ -1,7 +1,33 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Script from "next/script";
+import { toast } from "react-toastify";
+
+const initialFormState = {
+  nombreProyecto: "",
+  institucionSolicitante: "",
+  nombreActor: "",
+  objetivoGeneral: "",
+  resultado: "",
+  departamento: "",
+  costoTotal: "",
+  contrapartidaInstitucion: "",
+  contrapartidaCooperante: "",
+  actorDeCooperacion: "",
+  NumeroDeProyecto: "",
+  etapaDeProyecto: "",
+  tipoDeProyecto: "",
+  documentos: "",
+  observaciones: "",
+  objetivos: "",
+  resultados: "",
+  tematicas: "",
+  direccion: "",
+  ano: "",
+  areas: "",
+  fechaAprobacion: "",
+};
 
 export default function PDFExtractor() {
   // State
@@ -9,30 +35,8 @@ export default function PDFExtractor() {
   const [outputSnippet, setOutputSnippet] = useState(
     "Selecciona un campo para ver el origen"
   );
-  const [form, setForm] = useState({
-    nombreProyecto: "",
-    institucionSolicitante: "",
-    nombreActor: "",
-    objetivoGeneral: "",
-    resultado: "",
-    departamento: "",
-    costoTotal: "",
-    contrapartidaInstitucion: "",
-    contrapartidaCooperante: "",
-    actorDeCooperacion: "",
-    NumeroDeProyecto: "",
-    etapaDeProyecto: "",
-    tipoDeProyecto: "",
-    documentos: "",
-    observaciones: "",
-    objetivos: "",
-    resultados: "",
-    tematicas: "",
-    direccion: "",
-    ano: "",
-    areas: "",
-    fechaAprobacion: "",
-  });
+  const [form, setForm] = useState(initialFormState);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Load PDF.js worker from CDN once PDF.js script is available
@@ -279,8 +283,8 @@ export default function PDFExtractor() {
     const lines = text.split("\n");
     setForm((prev) => ({
       ...prev,
-      nombreProyecto: extractNombreProyecto(lines),
       institucionSolicitante: extractInstitucionSolicitante(lines),
+      nombreProyecto: extractNombreProyecto(lines),
       nombreActor: extractAfterKeyword(
         "Nombre de la Fuente Cooperante",
         lines
@@ -328,6 +332,105 @@ export default function PDFExtractor() {
     }));
   };
 
+  // Fetch project by number
+  const handleBuscar = async () => {
+    if (!form.NumeroDeProyecto) return;
+    const res = await fetch(`/api/proyectos?NumProyecto=${form.NumeroDeProyecto}`);
+    const data = await res.json();
+    if (data && data.length > 0) {
+      setEditingId(data[0].NumProyecto?.toString() || null);
+      const p = data[0]; // <-- Add this line
+      setForm((prev) => ({
+        ...prev,
+        NumeroDeProyecto: p.NumProyecto?.toString() || "",
+        nombreProyecto: p.NombreProyecto || "",
+        institucionSolicitante: p.InstitucionSolicitante || "",
+        nombreActor: p.NombreActor || "",
+        actorDeCooperacion: p.ActorCooperacion || "",
+        departamento: p.Dependencia || "",
+        fechaAprobacion: formatDate(p.FechaAprovacion),
+        etapaDeProyecto: p.EtapaProyecto || "",
+        tipoDeProyecto: p.TipoProyecto || "",
+        costoTotal: formatMoney(p.CostoTotal),
+        contrapartidaInstitucion: formatMoney(p.ContrapartidaInstitucion),
+        contrapartidaCooperante: formatMoney(p.ContrapartidaCooperante),
+        documentos: p.Documentos || "",
+        observaciones: p.Observaciones || "",
+        objetivoGeneral: p.Objetivos || "",
+        resultado: p.Resultados || "",
+        tematicas: p.Tematicas || "",
+        direccion: p.Direccion || "",
+        ano: p.Ano?.toString() || "",
+        areas: p.Areas || "",
+        objetivos: p.Objetivos || "",
+        resultados: p.Resultados || "",
+      }));
+    } else {
+      alert("Proyecto no encontrado.");
+    }
+  };
+
+
+
+  // Save form to API
+  const handleGuardar = async () => {
+    const confirm = window.confirm("¿Está seguro que desea guardar este proyecto?");
+    if (!confirm) {
+      toast.info("Guardado cancelado.");
+      return;
+    }
+
+    const parseMoney = (val: string) =>
+      Number(val.replace(/[^0-9.]/g, "")) || 0;
+
+    const payload = {
+      ActorCooperacion: form.actorDeCooperacion,
+      InstitucionSolicitante: form.institucionSolicitante,
+      NombreActor: form.nombreActor,
+      NombreProyecto: form.nombreProyecto,
+      FechaAprovacion: form.fechaAprobacion,
+      EtapaProyecto: form.etapaDeProyecto,
+      TipoProyecto: form.tipoDeProyecto,
+      CostoTotal: parseMoney(form.costoTotal),
+      ContrapartidaInstitucion: parseMoney(form.contrapartidaInstitucion),
+      Documentos: form.documentos,
+      Observaciones: form.observaciones,
+      Objetivos: form.objetivoGeneral,
+      Resultados: form.resultado,
+      Tematicas: form.tematicas,
+      Dependencia: form.departamento,
+      Ano: form.ano,
+      ContrapartidaCooperante: parseMoney(form.contrapartidaCooperante),
+      Areas: form.areas,
+    };
+    const res = await fetch("/api/proyectos", {
+      method: editingId ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...payload, NumProyecto: editingId }),
+    });
+    const result = await res.json();
+    if (res.ok) {
+      toast.success(
+        editingId
+          ? `Proyecto actualizado correctamente (N° ${form.NumeroDeProyecto})`
+          : `Proyecto guardado correctamente (N° ${result.insertId || "?"})`
+      );
+      if (!editingId && result.insertId) {
+        setForm((prev) => ({
+          ...prev,
+          NumeroDeProyecto: result.insertId.toString(),
+        }));
+      }
+    } else {
+      toast.error("Error al guardar el proyecto.");
+    }
+  };
+
+  const handleNuevo = () => {
+    setEditingId(null);
+    setForm(initialFormState);
+  };
+
   return (
     <>
       <Script
@@ -336,16 +439,33 @@ export default function PDFExtractor() {
       />
       <div className="p-6 flex flex-col gap-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Form fields (take 2/3 width on md+) */}
           <div className="md:col-span-2 space-y-4">
-            <div>
-              <label className="block text-sm font-semibold">Número de proyecto</label>
-              <input
-                name="NumeroDeProyecto"
-                className="w-full border rounded p-2"
-                value={form.NumeroDeProyecto}
-                onChange={handleInputChange}
-              />
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <label className="block text-sm font-semibold">Número de proyecto</label>
+                <input
+                  name="NumeroDeProyecto"
+                  className="w-full border rounded p-2"
+                  value={form.NumeroDeProyecto}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <button
+                type="button"
+                className="bg-blue-500 text-white px-3 py-2 rounded"
+                onClick={handleBuscar}
+                title="Buscar proyecto"
+              >
+                Buscar
+              </button>
+              <button
+                type="button"
+                className="bg-gray-400 text-white px-3 py-2 rounded"
+                onClick={handleNuevo}
+                title="Limpiar formulario"
+              >
+                Limpiar
+              </button>
             </div>
             <div>
               <label className="block text-sm font-semibold">Nombre de proyecto</label>
@@ -392,21 +512,11 @@ export default function PDFExtractor() {
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold">Dependencia</label>
-              <input
-                name="departamento"
-                className="w-full border rounded p-2"
-                value={form.departamento}
-                onChange={handleInputChange}
-                onFocus={() => handleFocus("departamento")}
-              />
-            </div>
 
             <div>
               <label className="block text-sm font-semibold">Fecha de aprovación</label>
-              <input
-                name="FechaAprobacion"
+              <input  
+                name="fechaAprobacion"
                 type="date"
                 className="w-full border rounded p-2"
                 value={form.fechaAprobacion}
@@ -469,7 +579,7 @@ export default function PDFExtractor() {
             <div>
               <label className="block text-sm font-semibold">Contrapartida cooperante</label>
               <input
-                name="contrapartidaICooperante"
+                name="contrapartidaCooperante"
                 className="w-full border rounded p-2"
                 value={form.contrapartidaCooperante}
                 onChange={handleInputChange}
@@ -498,6 +608,31 @@ export default function PDFExtractor() {
                 <option value="CooperaciónTecnica">Cooperación Técnica</option>
                 <option value="Cooperación Financiera No Reembolsable">Cooperación Financiera No Reembolsable</option>
               </select>
+            </div>
+
+                        <div>
+              <label className="block text-sm font-semibold">Dirección</label>
+              <select
+                name="departamento"
+                className="w-full border rounded p-2"
+                value={form.departamento}
+                onChange={handleInputChange}
+              >
+                <option value="">Seleccione</option>
+                <option value="Dirección de Gestión y Educación de la Calidad">Dirección de Gestión y Educación de la Calidad</option>
+                <option value="Dirección de Vida Estudiantil">Dirección de Vida Estudiantil</option>
+                <option value="Unidad de Coordinación Subsistema Educación Indígena">Unidad de Coordinación Subsistema Educación Indígena</option>
+                <option value="Viceministerio de Planificación Institucional y Coordinación Regional">Viceministerio de Planificación Institucional y Coordinación Regional</option>
+                <option value="Dirección de Recursos Tecnológicos en Educación">Dirección de Recursos Tecnológicos en Educación</option>
+                <option value="Dirección de Desarrollo Curricular">Dirección de Desarrollo Curricular</option>
+                <option value="Instituto de Desarrollo Profesional Ulasdilao Gámez Solano">Instituto de Desarrollo Profesional Ulasdilao Gámez Solano</option>
+                <option value="Dirección de Infraestructura Educativa">Dirección de Infraestructura Educativa</option>
+                <option value="Dirección de Educación Técnica y Capacidades Emprendedoras">Dirección de Educación Técnica y Capacidades Emprendedoras</option>
+
+
+
+              </select>
+
             </div>
 
             <div>
@@ -550,30 +685,7 @@ export default function PDFExtractor() {
             </div>
 
 
-            <div>
-              <label className="block text-sm font-semibold">Dirección</label>
-              <select
-                name="direccion"
-                className="w-full border rounded p-2"
-                value={form.direccion}
-                onChange={handleInputChange}
-              >
-                <option value="">Seleccione</option>
-                <option value="Dirección de Gestión y Educación de la Calidad">Dirección de Gestión y Educación de la Calidad</option>
-                <option value="Dirección de Vida Estudiantil">Dirección de Vida Estudiantil</option>
-                <option value="Unidad de Coordinación Subsistema Educación Indígena">Unidad de Coordinación Subsistema Educación Indígena</option>
-                <option value="Viceministerio de Planificación Institucional y Coordinación Regional">Viceministerio de Planificación Institucional y Coordinación Regional</option>
-                <option value="Dirección de Recursos Tecnológicos en Educación">Dirección de Recursos Tecnológicos en Educación</option>
-                <option value="Dirección de Desarrollo Curricular">Dirección de Desarrollo Curricular</option>
-                <option value="Instituto de Desarrollo Profesional Ulasdilao Gámez Solano">Instituto de Desarrollo Profesional Ulasdilao Gámez Solano</option>
-                <option value="Dirección de Infraestructura Educativa">Dirección de Infraestructura Educativa</option>
-                <option value="Dirección de Educación Técnica y Capacidades Emprendedoras">Dirección de Educación Técnica y Capacidades Emprendedoras</option>
 
-
-
-              </select>
-
-            </div>
 
               <div>
               <label className="block text-sm font-semibold">Temáticas</label>
@@ -640,24 +752,53 @@ export default function PDFExtractor() {
               />
             </div>
             
-            <input
-              type="file"
-              accept=".pdf"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              className="mt-4"
-            />
+
           </div>
-          <div className="bg-gray-100 p-4 rounded shadow-sm overflow-auto h-full md:max-h-[500px] sticky top-6">
-            <h2 className="text-lg font-semibold mb-2">
-              Texto original
-            </h2>
-            <pre className="whitespace-pre-wrap text-sm">
-              {outputSnippet}
-            </pre>
+          <div>
+            {/* Buttons above the Texto original panel */}
+            <div className="flex flex-col gap-2 mb-4">
+              <button
+                type="button"
+                className="bg-blue-600 text-white px-4 py-2 rounded"
+                onClick={handleGuardar}
+              >
+                Guardar
+              </button>
+              <label className="bg-gray-300 text-gray-800 px-4 py-2 rounded cursor-pointer text-center">
+                Subir PDF
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+              </label>
+            </div>
+            <div className="bg-gray-100 p-4 rounded shadow-sm overflow-auto h-full md:max-h-[500px] sticky top-6">
+              <h2 className="text-lg font-semibold mb-2">
+                Texto original
+              </h2>
+              <pre className="whitespace-pre-wrap text-sm">
+                {outputSnippet}
+              </pre>
+            </div>
           </div>
         </div>
       </div>
     </>
   );
+}
+
+function formatDate(dateString: string | null | undefined) {
+  if (!dateString) return "";
+  // Handles both ISO and yyyy-MM-dd
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 10);
+}
+
+function formatMoney(n: any) {
+  if (n === null || n === undefined || n === "") return "";
+  return `US$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
 }
