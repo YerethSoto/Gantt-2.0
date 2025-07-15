@@ -81,7 +81,22 @@ export default function Sidebar() {
             }}
           />
         </li>
+
+        {/* Botón para Ver Proyectos */}
+        <li>
+          <Button
+            label="Proyectos"
+            icon="pi pi-briefcase"
+            className="w-full flex items-center justify-start bg-gray-100 text-gray-700 hover:bg-[#CDA95F] hover:text-white transition-all duration-300 p-3 rounded-lg"
+            onClick={() => {
+              router.push("/proyecto");
+              setSidebarVisible(false);
+            }}
+          />
+        </li>
       </ul>
+
+      
 
      
     </PrimeSidebar>
