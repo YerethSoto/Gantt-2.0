@@ -1,4 +1,4 @@
-import ConveniosTable from "../components/ExtraerTexto";
+import ExtraerPDF from '@/app/components//ExtraerTexto';
 import { TabView, TabPanel } from 'primereact/tabview';
         
 
@@ -8,7 +8,7 @@ export default function ProyectosPage() {
       <div className="bg-white shadow-md rounded-lg p-6">
     <TabView>
     <TabPanel header="Lista de Proyecto">
-    <ConveniosTable />
+    <ExtraerPDF />
     </TabPanel>
 </TabView>
       </div>

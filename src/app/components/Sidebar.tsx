@@ -80,6 +80,17 @@ export default function Sidebar() {
             }}
           />
         </li>
+        <li>
+          <Button
+            label="Proyectos"
+            icon="pi pi-folder"
+            className="w-full flex items-center justify-start bg-gray-100 text-gray-700 hover:bg-[#CDA95F] hover:text-white transition-all duration-300 p-3 rounded-lg"
+            onClick={() => {
+              router.push("/dashboard/proyecto");
+              setSidebarVisible(false);
+            }}
+          />
+        </li>
 
         {/* Dropdown para ver el apartado de oportunidades */}
         <li>
