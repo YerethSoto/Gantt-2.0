@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Script from "next/script";
 import { toast } from "react-toastify";
+import Select from "react-select";
 
 const initialFormState = {
   nombreProyecto: "",
@@ -28,6 +29,45 @@ const initialFormState = {
   areas: "",
   fechaAprobacion: "",
 };
+
+// Dirección options for react-select
+const DIRECCION_OPTIONS = [
+  { value: "Viceministro Académico", label: "Viceministro Académico" },
+  { value: "Viceministro de Planificación Institucional y Coordinación Regional", label: "Viceministro de Planificación Institucional y Coordinación Regional" },
+  { value: "Viceministro Administrativo", label: "Viceministro Administrativo" },
+  { value: "Unidad para la Promoción de la Igualdad de Género", label: "Unidad para la Promoción de la Igualdad de Género" },
+  { value: "Contraloría de servicios", label: "Contraloría de servicios" },
+  { value: "Auditoría Interna", label: "Auditoría Interna" },
+  { value: "Prensa y Relaciones Públicas", label: "Prensa y Relaciones Públicas" },
+  { value: "Asuntos internacionales y Cooperación", label: "Asuntos internacionales y Cooperación" },
+  { value: "Asuntos Jurídicos", label: "Asuntos Jurídicos" },
+  { value: "Educación Privada", label: "Educación Privada" },
+  { value: "Recursos Tecnológicos en Educación", label: "Recursos Tecnológicos en Educación" },
+  { value: "Educación Técnica y Capacidades Emprendedoras", label: "Educación Técnica y Capacidades Emprendedoras" },
+  { value: "Desarrollo Curricular", label: "Desarrollo Curricular" },
+  { value: "Vida Estudiantil", label: "Vida Estudiantil" },
+  { value: "Gestión y Evaluación", label: "Gestión y Evaluación" },
+  { value: "Gestión y Desarrollo Regional", label: "Gestión y Desarrollo Regional" },
+  { value: "Proveeduría Institucional", label: "Proveeduría Institucional" },
+  { value: "Financiera", label: "Financiera" },
+  { value: "Planificación Institucional", label: "Planificación Institucional" },
+  { value: "Gestión de Talento Humano", label: "Gestión de Talento Humano" },
+  { value: "Infraestructura Educativa", label: "Infraestructura Educativa" },
+  { value: "Programas de Equidad", label: "Programas de Equidad" },
+  { value: "Informática de Gestión", label: "Informática de Gestión" },
+  { value: "Servicios Generales", label: "Servicios Generales" },
+  { value: "Direcciones Regionales de Educación", label: "Direcciones Regionales de Educación" },
+];
+
+const AREAS_OPTIONS = [
+  { value: "Educación para el Desarrollo Sostenible", label: "Educación para el Desarrollo Sostenible" },
+  { value: "Innovación y fortalecimiento en los aprendizajes", label: "Innovación y fortalecimiento en los aprendizajes" },
+  { value: "Transformación digital", label: "Transformación digital" },
+  { value: "Reforzamiento de los aprendizaje", label: "Reforzamiento de los aprendizaje" },
+  { value: "Formación permanente", label: "Formación permanente" },
+  { value: "Educación técnica profesional", label: "Educación técnica profesional" },
+  { value: "Gestión educativa", label: "Gestión educativa" },
+];
 
 export default function PDFExtractor() {
   // State
@@ -612,50 +652,28 @@ export default function PDFExtractor() {
 
                         <div>
               <label className="block text-sm font-semibold">Dirección</label>
-              <select
-                name="departamento"
-                className="w-full border rounded p-2"
-                value={form.departamento}
-                onChange={handleInputChange}
-              >
-                <option value="">Seleccione</option>
-                <option value="Dirección de Gestión y Educación de la Calidad">Dirección de Gestión y Educación de la Calidad</option>
-                <option value="Dirección de Vida Estudiantil">Dirección de Vida Estudiantil</option>
-                <option value="Unidad de Coordinación Subsistema Educación Indígena">Unidad de Coordinación Subsistema Educación Indígena</option>
-                <option value="Viceministerio de Planificación Institucional y Coordinación Regional">Viceministerio de Planificación Institucional y Coordinación Regional</option>
-                <option value="Dirección de Recursos Tecnológicos en Educación">Dirección de Recursos Tecnológicos en Educación</option>
-                <option value="Dirección de Desarrollo Curricular">Dirección de Desarrollo Curricular</option>
-                <option value="Instituto de Desarrollo Profesional Ulasdilao Gámez Solano">Instituto de Desarrollo Profesional Ulasdilao Gámez Solano</option>
-                <option value="Dirección de Infraestructura Educativa">Dirección de Infraestructura Educativa</option>
-                <option value="Dirección de Educación Técnica y Capacidades Emprendedoras">Dirección de Educación Técnica y Capacidades Emprendedoras</option>
-
-
-
-              </select>
-
+              <Select
+                options={DIRECCION_OPTIONS}
+                value={DIRECCION_OPTIONS.find(opt => opt.value === form.departamento) || null}
+                onChange={opt => setForm(prev => ({ ...prev, departamento: opt ? opt.value : "" }))}
+                isClearable
+                placeholder="Buscar dirección..."
+                className="react-select-container"
+                classNamePrefix="react-select"
+              />
             </div>
 
             <div>
               <label className="block text-sm font-semibold">Áreas</label>
-              <select
-                name="areas"
-                className="w-full border rounded p-2"
-                value={form.areas}
-                onChange={handleInputChange}
-              >
-                <option value="">Seleccione</option>
-                <option value="Educación para el Desarrollo Sostenible">Educación para el Desarrollo Sostenible</option>
-                <option value="Innovación y fortalecimiento en los aprendizajes">Innovación y fortalecimiento en los aprendizajes</option>
-                <option value="Transformación digital">Transformación digital</option>
-                <option value="Reforzamiento de los aprendizaje">Reforzamiento de los aprendizaje</option>
-                <option value="Formación permanente">Formación permanente</option>
-                <option value="Educación técnica profesional">Educación técnica profesional</option>
-                <option value="Educación para el Desarrollo Sostenible">Educación para el Desarrollo Sostenible</option>
-                <option value="Innovación y fortalecimiento en los aprendizajes">Innovación y fortalecimiento en los aprendizajes</option>
-                <option value="Gestión educativa">Gestión educativa</option>
-             
-                
-              </select>
+              <Select
+                options={AREAS_OPTIONS}
+                value={AREAS_OPTIONS.find(opt => opt.value === form.areas) || null}
+                onChange={opt => setForm(prev => ({ ...prev, areas: opt ? opt.value : "" }))}
+                isClearable
+                placeholder="Buscar área..."
+                className="react-select-container"
+                classNamePrefix="react-select"
+              />
             </div>
 
 
@@ -687,7 +705,9 @@ export default function PDFExtractor() {
 
 
 
-              <div>
+
+                {/*Esta parte es de tematica por ahora no es necesaria */}
+              {/* <div>
               <label className="block text-sm font-semibold">Temáticas</label>
               <select
                 name="tematicas"
@@ -715,7 +735,8 @@ export default function PDFExtractor() {
                 <option value="Gestión educativa">Gestión educativa</option>
                 
               </select>
-            </div>
+            </div> */}
+       
 
 
               <div>
@@ -755,7 +776,6 @@ export default function PDFExtractor() {
 
           </div>
           <div>
-            {/* Buttons above the Texto original panel */}
             <div className="flex flex-col gap-2 mb-4">
               <button
                 type="button"
