@@ -3,13 +3,10 @@ import { useEffect, useState } from "react";
 import { Chart } from "primereact/chart";
 import { Dropdown } from "primereact/dropdown";
 import { Accordion, AccordionTab } from "primereact/accordion";
-import { API_BASE } from "@/utils/api";
-// Data Labels para las gráficas
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels);
 
-// Color generation functions
 function generarColoresDesdeBase(cantidad: number): string[] {
   const baseColors = ["#CFAC65", "#182951", "#F2DAB1", "#C1C5C8", "#0034A0"];
   const colores: string[] = [];
@@ -42,7 +39,7 @@ function mezclarColoresHex(hex1: string, hex2: string, ratio: number): string {
   return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
 }
 
-export default function GraficoDireccion() {
+export default function GraficoRegion() {
   const [proyectos, setProyectos] = useState<any[]>([]);
   const [anioSeleccionado, setAnioSeleccionado] = useState<string | null>(null);
 
@@ -60,7 +57,6 @@ export default function GraficoDireccion() {
     fetchData();
   }, []);
 
-  // Años disponibles
   const aniosDisponibles = Array.from(
     new Set(
       proyectos
@@ -73,16 +69,15 @@ export default function GraficoDireccion() {
     ? proyectos.filter((p) => p.Ano?.toString() === anioSeleccionado)
     : proyectos;
 
-  // Agrupar por Dirección
   const agrupado: Record<string, any[]> = {};
   proyectosFiltrados.forEach((p) => {
-    const Dependencia = p.Dependencia || "Sin dirección";
-    if (!agrupado[Dependencia]) agrupado[Dependencia] = [];
-    agrupado[Dependencia].push(p);
+    const region = p.Region || "Nacional"; 
+    if (!agrupado[region]) agrupado[region] = [];
+    agrupado[region].push(p);
   });
 
   const labels = Object.keys(agrupado);
-  const valores = labels.map((d) => agrupado[d].length);
+  const valores = labels.map((r) => agrupado[r].length);
   const colores = generarColoresDesdeBase(labels.length);
 
   const pieChartData = {
@@ -130,15 +125,15 @@ export default function GraficoDireccion() {
   return (
     <div className="p-6 bg-white shadow-lg rounded-lg flex">
       <div className="w-1/4 pr-4 border-r border-gray-300">
-        <h2 className="text-lg font-bold mb-4 text-gray-700">Dependencias</h2>
+        <h2 className="text-lg font-bold mb-4 text-gray-700">Regiones</h2>
         <ul className="space-y-2">
-          {labels.map((direccion, index) => (
+          {labels.map((region, index) => (
             <li key={index} className="flex items-center">
               <span
                 className="w-4 h-4 rounded-full inline-block mr-2"
                 style={{ backgroundColor: colores[index] }}
               ></span>
-              <span className="text-gray-700 font-medium">{direccion}</span>
+              <span className="text-gray-700 font-medium">{region}</span>
             </li>
           ))}
         </ul>
@@ -146,7 +141,7 @@ export default function GraficoDireccion() {
 
       <div className="w-3/4 pl-4 flex flex-col items-center">
         <h2 className="text-lg font-bold mb-4 text-gray-700">
-          📊 Distribución por dirección
+          🌎 Distribución geográfica de proyectos
         </h2>
 
         <div className="flex items-start gap-6 mb-6">
@@ -168,7 +163,7 @@ export default function GraficoDireccion() {
 
         <div className="w-full mt-4">
           <Accordion multiple activeIndex={[0]}>
-            {labels.map((direccion, idx) => (
+            {labels.map((region, idx) => (
               <AccordionTab
                 key={idx}
                 header={
@@ -176,18 +171,33 @@ export default function GraficoDireccion() {
                     className="text-white px-3 py-1 rounded-md font-semibold"
                     style={{ backgroundColor: colores[idx] }}
                   >
-                    {direccion}
+                    {region}
                   </span>
                 }
               >
                 <ul className="list-disc list-inside text-sm text-gray-600">
-                  {agrupado[direccion].map((proyecto, i) => (
-                    <li key={i}>{proyecto.NombreProyecto || "Nombre no disponible"}</li>
+                  {agrupado[region].map((proyecto, i) => (
+                    <li key={i}>
+                      {proyecto.NombreProyecto || "Nombre no disponible"}
+                      <span className="text-gray-500 text-xs ml-2">
+                        ({proyecto.Dependencia || "Sin dependencia"})
+                      </span>
+                    </li>
                   ))}
                 </ul>
               </AccordionTab>
             ))}
           </Accordion>
+        </div>
+
+        <div className="w-full mt-6 p-4 bg-gray-50 rounded-lg">
+          <h3 className="font-semibold text-gray-700 mb-2">Cobertura regional</h3>
+          <p className="text-gray-600 text-sm">
+            Este gráfico muestra la distribución territorial de los proyectos, 
+            permitiendo identificar las regiones con mayor concentración de actividades
+            y aquellas que podrían requerir mayor atención. Los proyectos marcados como
+            "Nacional" tienen alcance en todo el territorio.
+          </p>
         </div>
       </div>
     </div>

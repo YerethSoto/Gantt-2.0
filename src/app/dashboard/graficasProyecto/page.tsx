@@ -6,6 +6,9 @@ import GraficoArea from "@/app/components/Graficos/GraficoArea";
 import GraficoTipoProyecto from "@/app/components/Graficos/GraficoTipoProyecto";
 import { useRouter } from 'next/navigation'; // Note: 'next/navigation' for App Router
 import { Router } from "next/router";
+import GraficoRegion from "@/app/components/Graficos/GraficoRegion";
+import GraficoContrapartidas from "@/app/components/Graficos/GraficoContrapartidas";
+import GraficoActoresCooperacion from "@/app/components/Graficos/GraficoActoresCooperacion"
 export default function GraficasProyectoPage() {
   const [activeIndex, setActiveIndex] = useState(0);
   const router = useRouter(); 
@@ -19,7 +22,7 @@ export default function GraficasProyectoPage() {
             activeIndex={activeIndex}
             onTabChange={(e) => setActiveIndex(e.index)}
           >
-            <TabPanel header="Dirección">
+            <TabPanel header="Dependencia">
               <div className="p-4 fade-in">
                 <GraficoDireccion />
               </div>
@@ -29,20 +32,28 @@ export default function GraficasProyectoPage() {
                 <GraficoArea />
               </div>
             </TabPanel>
-            <TabPanel header="Tipo de Proyecto">
+            <TabPanel header="Tipo de proyecto">
               <div className="p-4 fade-in">
                 <GraficoTipoProyecto />
               </div>
             </TabPanel>
-          <TabPanel header="Ir a proyectos">
-  <div className="p-4 fade-in">
-    <button 
-      onClick={() => router.push('/dashboard/proyecto')}
-      className="your-button-classes"
-    >
-      Ir a proyectos para añadir o editar
-    </button>
-  </div>
+          <TabPanel header="Región">
+            <div className="p-4 fade-in">
+              <GraficoRegion />
+            </div>
+          </TabPanel>
+
+            <TabPanel header="Contrapartidas">
+            <div className="p-4 fade-in">
+              <GraficoContrapartidas />
+            </div>
+            </TabPanel>
+
+            <TabPanel header="Tipo de Fuente">
+            <div className="p-4 fade-in">
+              <GraficoActoresCooperacion />
+            </div>
+  
 </TabPanel>
           </TabView>
         </div>

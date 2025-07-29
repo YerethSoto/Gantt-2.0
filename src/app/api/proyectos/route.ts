@@ -1,6 +1,36 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/mariadb";
 
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const numProyecto = searchParams.get("NumProyecto");
+    
+    if (!numProyecto) {
+      return NextResponse.json(
+        { error: "NumProyecto requerido" }, 
+        { status: 400 }
+      );
+    }
+
+    await query(
+      `DELETE FROM proyecto WHERE NumProyecto = ?`,
+      [numProyecto]
+    );
+
+    return NextResponse.json(
+      { message: "Proyecto eliminado correctamente" }
+    );
+  } catch (error) {
+    console.error("Error eliminando proyecto:", error);
+    return NextResponse.json(
+      { error: "Error al eliminar proyecto" }, 
+      { status: 500 }
+    );
+  }
+}
+
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const numProyecto = searchParams.get("NumProyecto");
@@ -22,91 +52,63 @@ export async function GET(req: Request) {
   }
 }
 
+
+
 // POST: Insert a new proyecto
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const {
-      ActorCooperacion,
-      InstitucionSolicitante,
-      NombreActor,
-      NombreProyecto,
-      FechaAprovacion,
-      EtapaProyecto,
-      TipoProyecto,
-      CostoTotal,
-      ContrapartidaInstitucion,
-      Documentos,
-      Observaciones,
-      Objetivos,
-      Resultados,
-      Tematicas,
-      Dependencia,
-      Ano,
-      ContrapartidaCooperante,
-      Areas,
-      NumProyecto, // <-- include this if you want to allow client to specify
-    } = body;
-
+    
     const result = await query(
       `INSERT INTO proyecto (
-        NumProyecto, ActorCooperacion, InstitucionSolicitante, NombreActor, NombreProyecto, FechaAprovacion, EtapaProyecto, TipoProyecto, CostoTotal,
-        ContrapartidaInstitucion, Documentos, Observaciones, Objetivos, Resultados, Tematicas, Dependencia, Ano,
-        ContrapartidaCooperante, Areas
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON DUPLICATE KEY UPDATE
-        ActorCooperacion=VALUES(ActorCooperacion),
-        InstitucionSolicitante=VALUES(InstitucionSolicitante),
-        NombreActor=VALUES(NombreActor),
-        NombreProyecto=VALUES(NombreProyecto),
-        FechaAprovacion=VALUES(FechaAprovacion),
-        EtapaProyecto=VALUES(EtapaProyecto),
-        TipoProyecto=VALUES(TipoProyecto),
-        CostoTotal=VALUES(CostoTotal),
-        ContrapartidaInstitucion=VALUES(ContrapartidaInstitucion),
-        Documentos=VALUES(Documentos),
-        Observaciones=VALUES(Observaciones),
-        Objetivos=VALUES(Objetivos),
-        Resultados=VALUES(Resultados),
-        Tematicas=VALUES(Tematicas),
-        Dependencia=VALUES(Dependencia),
-        Ano=VALUES(Ano),
-        ContrapartidaCooperante=VALUES(ContrapartidaCooperante),
-        Areas=VALUES(Areas)
-      `,
+        ActorCooperacion, InstitucionSolicitante, NombreActor, 
+        NombreProyecto, FechaAprovacion, EtapaProyecto, 
+        TipoProyecto, CostoTotal, ContrapartidaInstitucion,
+        Documentos, Observaciones, Objetivos, Resultados,
+        Tematicas, Dependencia, Ano, ContrapartidaCooperante,
+        Areas, Region
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        NumProyecto || null, // If null, DB will auto-increment
-        ActorCooperacion,
-        InstitucionSolicitante,
-        NombreActor,
-        NombreProyecto,
-        FechaAprovacion,
-        EtapaProyecto,
-        TipoProyecto,
-        CostoTotal,
-        ContrapartidaInstitucion,
-        Documentos,
-        Observaciones,
-        Objetivos,
-        Resultados,
-        Tematicas,
-        Dependencia,
-        Ano,
-        ContrapartidaCooperante,
-        Areas,
+        body.ActorCooperacion,
+        body.InstitucionSolicitante,
+        body.NombreActor,
+        body.NombreProyecto,
+        body.FechaAprovacion,
+        body.EtapaProyecto,
+        body.TipoProyecto,
+        body.CostoTotal,
+        body.ContrapartidaInstitucion,
+        body.Documentos,
+        body.Observaciones,
+        body.Objetivos,
+        body.Resultados,
+        body.Tematicas,
+        body.Dependencia,
+        body.Ano,
+        body.ContrapartidaCooperante,
+        body.Areas,
+        body.Region
       ]
     );
 
+    // Convert BigInt to string
+    const insertId = result.insertId.toString();
+
     return NextResponse.json(
-      { message: "Proyecto guardado o actualizado correctamente", insertId: result.insertId?.toString() },
+      { 
+        message: "Proyecto creado",
+        insertId 
+      },
       { status: 201 }
     );
   } catch (error) {
-    console.error("Error insertando/actualizando proyecto:", error);
-    return NextResponse.json({ error: "Error al guardar proyecto" }, { status: 500 });
+    console.error("Error:", error);
+    return NextResponse.json(
+      { error: "Error al crear proyecto" },
+      { status: 500 }
+    );
   }
 }
-
 // PUT: Update an existing proyecto
 export async function PUT(req: Request) {
   try {
@@ -131,6 +133,7 @@ export async function PUT(req: Request) {
       Ano,
       ContrapartidaCooperante,
       Areas,
+      Region,
     } = body;
 
     if (!NumProyecto) {
@@ -140,7 +143,7 @@ export async function PUT(req: Request) {
     await query(
       `UPDATE proyecto SET
         ActorCooperacion=?, InstitucionSolicitante=?, NombreActor=?, NombreProyecto=?, FechaAprovacion=?, EtapaProyecto=?, TipoProyecto=?, CostoTotal=?,
-        ContrapartidaInstitucion=?, Documentos=?, Observaciones=?, Objetivos=?, Resultados=?, Tematicas=?, Dependencia=?, Ano=?, ContrapartidaCooperante=?, Areas=?
+        ContrapartidaInstitucion=?, Documentos=?, Observaciones=?, Objetivos=?, Resultados=?, Tematicas=?, Dependencia=?, Ano=?, ContrapartidaCooperante=?, Areas=?, Region=?
       WHERE NumProyecto=?`,
       [
         ActorCooperacion,
@@ -161,6 +164,7 @@ export async function PUT(req: Request) {
         Ano,
         ContrapartidaCooperante,
         Areas,
+        Region,
         NumProyecto,
       ]
     );
@@ -170,4 +174,7 @@ export async function PUT(req: Request) {
     console.error("Error actualizando proyecto:", error);
     return NextResponse.json({ error: "Error al actualizar proyecto" }, { status: 500 });
   }
+
+
+
 }

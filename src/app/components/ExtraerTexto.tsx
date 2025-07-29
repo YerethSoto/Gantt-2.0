@@ -1,9 +1,20 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import Script from "next/script";
 import { toast } from "react-toastify";
 import Select from "react-select";
+
+declare global {
+  interface Window {
+    pdfjsLib: any;
+  }
+}
+
+type AreaOption = {
+  value: string;
+  label: string;
+};
 
 const initialFormState = {
   nombreProyecto: "",
@@ -28,14 +39,20 @@ const initialFormState = {
   ano: "",
   areas: "",
   fechaAprobacion: "",
+  Region: "",
 };
 
-// Dirección options for react-select
 const DIRECCION_OPTIONS = [
   { value: "Viceministro Académico", label: "Viceministro Académico" },
-  { value: "Viceministro de Planificación Institucional y Coordinación Regional", label: "Viceministro de Planificación Institucional y Coordinación Regional" },
+  {
+    value: "Viceministro de Planificación Institucional y Coordinación Regional",
+    label: "Viceministro de Planificación Institucional y Coordinación Regional",
+  },
   { value: "Viceministro Administrativo", label: "Viceministro Administrativo" },
-  { value: "Unidad para la Promoción de la Igualdad de Género", label: "Unidad para la Promoción de la Igualdad de Género" },
+  {
+    value: "Unidad para la Promoción de la Igualdad de Género",
+    label: "Unidad para la Promoción de la Igualdad de Género",
+  },
   { value: "Contraloría de servicios", label: "Contraloría de servicios" },
   { value: "Auditoría Interna", label: "Auditoría Interna" },
   { value: "Prensa y Relaciones Públicas", label: "Prensa y Relaciones Públicas" },
@@ -59,7 +76,38 @@ const DIRECCION_OPTIONS = [
   { value: "Direcciones Regionales de Educación", label: "Direcciones Regionales de Educación" },
 ];
 
-const AREAS_OPTIONS = [
+const REGION_OPTIONS = [
+  { value: "San José-Central", label: "San José-Central" },
+  { value: "San José-Norte", label: "San José-Norte" },
+  { value: "San José Sur-Oeste", label: "San José Sur-Oeste" },
+  { value: "Desamparados", label: "Desamparados" },
+  { value: "Los Santos", label: "Los Santos" },
+  { value: "Puriscal", label: "Puriscal" },
+  { value: "Pérez Zeledón", label: "Pérez Zeledón" },
+  { value: "Alajuela", label: "Alajuela" },
+  { value: "Occidente", label: "Occidente" },
+  { value: "San Carlos", label: "San Carlos" },
+  { value: "Zona Norte-Norte", label: "Zona Norte-Norte" },
+  { value: "Cartago", label: "Cartago" },
+  { value: "Turrialba", label: "Turrialba" },
+  { value: "Heredia", label: "Heredia" },
+  { value: "Sarapiquí", label: "Sarapiquí" },
+  { value: "Liberia", label: "Liberia" },
+  { value: "Cañas", label: "Cañas" },
+  { value: "Nicoya", label: "Nicoya" },
+  { value: "Santa Cruz", label: "Santa Cruz" },
+  { value: "Puntarenas", label: "Puntarenas" },
+  { value: "Peninsular", label: "Peninsular" },
+  { value: "Aguirre", label: "Aguirre" },
+  { value: "Grande de Térraba", label: "Grande de Térraba" },
+  { value: "Coto", label: "Coto" },
+  { value: "Limón", label: "Limón" },
+  { value: "Sulá", label: "Sulá" },
+  { value: "Guápiles", label: "Guápiles" },
+  { value: "Nacional", label: "Nacional" },
+];
+
+const AREAS_OPTIONS: AreaOption[] = [
   { value: "Educación para el Desarrollo Sostenible", label: "Educación para el Desarrollo Sostenible" },
   { value: "Innovación y fortalecimiento en los aprendizajes", label: "Innovación y fortalecimiento en los aprendizajes" },
   { value: "Transformación digital", label: "Transformación digital" },
@@ -67,27 +115,28 @@ const AREAS_OPTIONS = [
   { value: "Formación permanente", label: "Formación permanente" },
   { value: "Educación técnica profesional", label: "Educación técnica profesional" },
   { value: "Gestión educativa", label: "Gestión educativa" },
+  { value: "Otro", label: "Otro" },
 ];
 
 export default function PDFExtractor() {
-  // State
+  const [isPdfJsLoaded, setIsPdfJsLoaded] = useState(false);
+  const [selectedAreaOption, setSelectedAreaOption] = useState<AreaOption | null>(null);
+  const [customArea, setCustomArea] = useState("");
+  const [otherAreaValue, setOtherAreaValue] = useState("");
   const [fullText, setFullText] = useState("");
-  const [outputSnippet, setOutputSnippet] = useState(
-    "Selecciona un campo para ver el origen"
-  );
+  const [outputSnippet, setOutputSnippet] = useState("Selecciona un campo para ver el origen");
   const [form, setForm] = useState(initialFormState);
   const [editingId, setEditingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Load PDF.js worker from CDN once PDF.js script is available
   useEffect(() => {
-    if (typeof window !== "undefined" && (window as any).pdfjsLib) {
-      (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc =
+    if (typeof window !== "undefined" && window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+      setIsPdfJsLoaded(true);
     }
   }, []);
 
-  // All your extraction helpers:
   function extractAfterKeyword(keyword: string, lines: string[], numLines = 1) {
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].toLowerCase().includes(keyword.toLowerCase())) {
@@ -279,68 +328,97 @@ export default function PDFExtractor() {
         continue;
       }
       if (cap) {
-        if (!t || /^(cargo|tel\.|nombre|departamento|correo|email|dirección|teléfono|fax)/i.test(t)) break;
+        if (
+          !t ||
+          /^(cargo|tel\.|nombre|departamento|correo|email|dirección|teléfono|fax)/i.test(
+            t
+          )
+        )
+          break;
         res.push(t);
       }
     }
     return res.join(" ");
   }
+const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file || file.type !== "application/pdf") {
+    toast.warning("Por favor, selecciona un archivo PDF válido.");
+    return;
+  }
 
-  // File → extract → set states
-  const handleFileChange = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file || file.type !== "application/pdf") {
-      alert("Por favor, selecciona un archivo PDF válido.");
-      return;
-    }
+  if (!isPdfJsLoaded) {
+    toast.error("PDF.js no está cargado todavía. Por favor espere.");
+    return;
+  }
+
+  try {
+    toast.info("Procesando PDF...", { autoClose: 2000 });
+    
     const buffer = await file.arrayBuffer();
-    const pdf = await (window as any).pdfjsLib
-      .getDocument({ data: buffer })
-      .promise;
+    const pdf = await window.pdfjsLib.getDocument({ 
+      data: buffer,
+      disableFontFace: true, // Improves performance
+      verbosity: 0 // Reduces console output
+    }).promise;
 
     let text = "";
+    let pageTexts: string[] = [];
+
+    // Process each page
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
-      const tc = await page.getTextContent();
-      let lastY: number | null = null,
-        pageS = "";
-      for (const it of tc.items as any[]) {
-        if (
-          lastY !== null &&
-          Math.abs(it.transform[5] - lastY) > 2
-        ) {
-          pageS += "\n";
-        }
-        pageS += it.str + " ";
-        lastY = it.transform[5];
-      }
-      text += `\n\n--- Page ${i} ---\n\n${pageS}`;
+      const textContent = await page.getTextContent();
+      
+      // Extract text items and join with spaces
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      pageTexts.push(pageText);
+      text += `${pageText}\n`;
     }
 
     setFullText(text);
-    const lines = text.split("\n");
-    setForm((prev) => ({
+    console.log("Texto completo extraído:", text); // Debug
+
+    // Process extracted text
+    const lines = text.split('\n').filter(line => line.trim() !== '');
+    console.log("Líneas procesadas:", lines); // Debug
+
+    // Update form fields
+    setForm(prev => ({
       ...prev,
-      institucionSolicitante: extractInstitucionSolicitante(lines),
-      nombreProyecto: extractNombreProyecto(lines),
-      nombreActor: extractAfterKeyword(
-        "Nombre de la Fuente Cooperante",
-        lines
-      ),
-      objetivoGeneral: extractObjetivoGeneral(lines),
-      resultado: extractResultado(lines),
-      departamento: extractDepartamento(lines),
-      costoTotal: extractCostoTotal(lines),
-      contrapartidaInstitucion: extractContrapartidaInstitucion(
-        lines
-      ),
-      contrapartidaCooperante: extractContrapartidaCooperante(
-        lines
-      ),
+      institucionSolicitante: extractInstitucionSolicitante(lines) || prev.institucionSolicitante,
+      nombreProyecto: extractNombreProyecto(lines) || prev.nombreProyecto,
+      nombreActor: extractAfterKeyword("Nombre de la Fuente Cooperante", lines) || prev.nombreActor,
+      objetivoGeneral: extractObjetivoGeneral(lines) || prev.objetivoGeneral,
+      resultado: extractResultado(lines) || prev.resultado,
+      departamento: extractDepartamento(lines) || prev.departamento,
+      costoTotal: extractCostoTotal(lines) || prev.costoTotal,
+      contrapartidaInstitucion: extractContrapartidaInstitucion(lines) || prev.contrapartidaInstitucion,
+      contrapartidaCooperante: extractContrapartidaCooperante(lines) || prev.contrapartidaCooperante,
     }));
-  };
+
+    // Set initial preview
+    if (pageTexts.length > 0) {
+      setOutputSnippet(pageTexts[0].substring(0, 500) + (pageTexts[0].length > 500 ? "..." : ""));
+    }
+
+    toast.success("PDF procesado correctamente", { autoClose: 3000 });
+
+  } catch (error) {
+    console.error("Error al procesar PDF:", error);
+    toast.error(`Error al procesar PDF: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+  } finally {
+    // Reset file input to allow re-uploading the same file
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }
+};
 
   const handleAutoResize = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     e.target.style.height = "auto";
@@ -361,7 +439,6 @@ export default function PDFExtractor() {
     );
   };
 
-  // Handle manual input for new fields
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
@@ -372,14 +449,13 @@ export default function PDFExtractor() {
     }));
   };
 
-  // Fetch project by number
   const handleBuscar = async () => {
     if (!form.NumeroDeProyecto) return;
     const res = await fetch(`/api/proyectos?NumProyecto=${form.NumeroDeProyecto}`);
     const data = await res.json();
     if (data && data.length > 0) {
       setEditingId(data[0].NumProyecto?.toString() || null);
-      const p = data[0]; // <-- Add this line
+      const p = data[0];
       setForm((prev) => ({
         ...prev,
         NumeroDeProyecto: p.NumProyecto?.toString() || "",
@@ -404,15 +480,13 @@ export default function PDFExtractor() {
         areas: p.Areas || "",
         objetivos: p.Objetivos || "",
         resultados: p.Resultados || "",
+        Region: p.Region || "",
       }));
     } else {
       alert("Proyecto no encontrado.");
     }
   };
 
-
-
-  // Save form to API
   const handleGuardar = async () => {
     const confirm = window.confirm("¿Está seguro que desea guardar este proyecto?");
     if (!confirm) {
@@ -420,8 +494,9 @@ export default function PDFExtractor() {
       return;
     }
 
-    const parseMoney = (val: string) =>
-      Number(val.replace(/[^0-9.]/g, "")) || 0;
+    const parseMoney = (val: string) => Number(val.replace(/[^0-9.]/g, "")) || 0;
+
+    const finalArea = form.areas === "Otro" ? otherAreaValue : form.areas;
 
     const payload = {
       ActorCooperacion: form.actorDeCooperacion,
@@ -437,32 +512,70 @@ export default function PDFExtractor() {
       Observaciones: form.observaciones,
       Objetivos: form.objetivoGeneral,
       Resultados: form.resultado,
-      Tematicas: form.tematicas,
       Dependencia: form.departamento,
       Ano: form.ano,
       ContrapartidaCooperante: parseMoney(form.contrapartidaCooperante),
-      Areas: form.areas,
+      Areas: finalArea,
+      Region: form.Region,
     };
-    const res = await fetch("/api/proyectos", {
-      method: editingId ? "PUT" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...payload, NumProyecto: editingId }),
-    });
-    const result = await res.json();
-    if (res.ok) {
-      toast.success(
-        editingId
-          ? `Proyecto actualizado correctamente (N° ${form.NumeroDeProyecto})`
-          : `Proyecto guardado correctamente (N° ${result.insertId || "?"})`
-      );
-      if (!editingId && result.insertId) {
-        setForm((prev) => ({
-          ...prev,
-          NumeroDeProyecto: result.insertId.toString(),
-        }));
+
+    try {
+      const res = await fetch("/api/proyectos", {
+        method: editingId ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editingId ? { ...payload, NumProyecto: editingId } : payload),
+      });
+      
+      const result = await res.json();
+      
+      if (res.ok) {
+        toast.success(
+          editingId
+            ? `Proyecto actualizado (N° ${form.NumeroDeProyecto})`
+            : `Proyecto creado (N° ${result.insertId})`
+        );
+        if (!editingId && result.insertId) {
+          setForm(prev => ({
+            ...prev,
+            NumeroDeProyecto: result.insertId.toString(),
+          }));
+          setEditingId(result.insertId.toString());
+        }
+      } else {
+        throw new Error(result.error || "Error al guardar");
       }
-    } else {
-      toast.error("Error al guardar el proyecto.");
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Error al guardar el proyecto");
+    }
+  };
+
+  const handleEliminar = async () => {
+    if (!form.NumeroDeProyecto) {
+      toast.error("No hay proyecto seleccionado para eliminar");
+      return;
+    }
+
+    const confirm = window.confirm(
+      `¿Está seguro que desea eliminar el proyecto N° ${form.NumeroDeProyecto}?`
+    );
+    if (!confirm) return;
+
+    try {
+      const res = await fetch(`/api/proyectos?NumProyecto=${form.NumeroDeProyecto}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        toast.success(`Proyecto N° ${form.NumeroDeProyecto} eliminado`);
+        setForm(initialFormState);
+        setEditingId(null);
+      } else {
+        throw new Error("Error al eliminar");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Error al eliminar el proyecto");
     }
   };
 
@@ -480,37 +593,51 @@ export default function PDFExtractor() {
       <div className="p-6 flex flex-col gap-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-2 space-y-4">
-            <div className="flex items-end gap-2">
-              <div className="flex-1">
-                <label className="block text-sm font-semibold">Número de proyecto</label>
-                <input
-                  name="NumeroDeProyecto"
-                  className="w-full border rounded p-2"
-                  value={form.NumeroDeProyecto}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <button
-                type="button"
-                className="bg-blue-500 text-white px-3 py-2 rounded"
-                onClick={handleBuscar}
-                title="Buscar proyecto"
-              >
-                Buscar
-              </button>
-              <button
-                type="button"
-                className="bg-gray-400 text-white px-3 py-2 rounded"
-                onClick={handleNuevo}
-                title="Limpiar formulario"
-              >
-                Limpiar
-              </button>
-            </div>
+          <div className="flex items-end gap-2">
+  <div className="flex-1">
+    <label className="block text-sm font-semibold">
+      Número de proyecto
+    </label>
+    <input
+      name="NumeroDeProyecto"
+      className="w-full border rounded p-2"
+      value={form.NumeroDeProyecto}
+      onChange={handleInputChange}
+    />
+  </div>
+  <button
+    type="button"
+    className="bg-blue-500 text-white px-3 py-2 rounded"
+    onClick={handleBuscar}
+    title="Buscar proyecto"
+  >
+    Buscar
+  </button>
+  <button
+    type="button"
+    className="bg-gray-400 text-white px-3 py-2 rounded"
+    onClick={handleNuevo}
+    title="Limpiar formulario"
+  >
+    Limpiar
+  </button>
+  {/* {editingId && (
+    <button
+      type="button"
+      className="bg-red-500 text-white px-3 py-2 rounded"
+      onClick={handleEliminar}
+      title="Eliminar proyecto"
+    >
+      Eliminar
+    </button>
+  )} */}
+</div>
             <div>
-              <label className="block text-sm font-semibold">Nombre de proyecto</label>
+              <label className="block text-sm font-semibold">
+                Nombre de proyecto
+              </label>
               <input
-                name="nombreProyecto" // <-- match state key exactly!
+                name="nombreProyecto" 
                 className="w-full border rounded p-2"
                 value={form.nombreProyecto}
                 onChange={handleInputChange}
@@ -518,7 +645,9 @@ export default function PDFExtractor() {
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold">Institución solicitante</label>
+              <label className="block text-sm font-semibold">
+                Institución solicitante
+              </label>
               <input
                 name="institucionSolicitante"
                 className="w-full border rounded p-2"
@@ -528,7 +657,9 @@ export default function PDFExtractor() {
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold">Nombre actor</label>
+              <label className="block text-sm font-semibold">
+                Socio estratégico
+              </label>
               <input
                 name="nombreActor"
                 className="w-full border rounded p-2"
@@ -537,9 +668,11 @@ export default function PDFExtractor() {
                 onFocus={() => handleFocus("nombreActor")}
               />
             </div>
-            
+
             <div>
-              <label className="block text-sm font-semibold">Actor de cooperación</label>
+              <label className="block text-sm font-semibold">
+                Tipo de fuente
+              </label>
               <select
                 name="actorDeCooperacion"
                 className="w-full border rounded p-2"
@@ -552,10 +685,11 @@ export default function PDFExtractor() {
               </select>
             </div>
 
-
             <div>
-              <label className="block text-sm font-semibold">Fecha de aprovación</label>
-              <input  
+              <label className="block text-sm font-semibold">
+                Fecha de aprobación
+              </label>
+              <input
                 name="fechaAprobacion"
                 type="date"
                 className="w-full border rounded p-2"
@@ -563,7 +697,6 @@ export default function PDFExtractor() {
                 onChange={handleInputChange}
               />
             </div>
-
 
             <div>
               <label className="block text-sm font-semibold">Año</label>
@@ -585,12 +718,13 @@ export default function PDFExtractor() {
                 <option value="2028">2028</option>
                 <option value="2029">2029</option>
                 <option value="2030">2030</option>
-                
               </select>
             </div>
 
-             <div>
-              <label className="block text-sm font-semibold">Objetivo general</label>
+            <div>
+              <label className="block text-sm font-semibold">
+                Objetivo general
+              </label>
               <textarea
                 name="objetivoGeneral"
                 className="w-full border rounded p-2 min-h-[150px]"
@@ -603,12 +737,10 @@ export default function PDFExtractor() {
               />
             </div>
 
-        
-
-
-            
             <div>
-              <label className="block text-sm font-semibold">Contrapartida institución</label>
+              <label className="block text-sm font-semibold">
+                Contrapartida institución
+              </label>
               <input
                 name="contrapartidaInstitucion"
                 className="w-full border rounded p-2"
@@ -617,7 +749,9 @@ export default function PDFExtractor() {
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold">Contrapartida cooperante</label>
+              <label className="block text-sm font-semibold">
+                Aporte cooperante
+              </label>
               <input
                 name="contrapartidaCooperante"
                 className="w-full border rounded p-2"
@@ -635,9 +769,8 @@ export default function PDFExtractor() {
               />
             </div>
 
-
             <div>
-              <label className="block text-sm font-semibold">Tipo de Proyecto</label>
+              <label className="block text-sm font-semibold">Modalidad</label>
               <select
                 name="tipoDeProyecto"
                 className="w-full border rounded p-2"
@@ -646,16 +779,31 @@ export default function PDFExtractor() {
               >
                 <option value="Seleccione">Seleccione</option>
                 <option value="CooperaciónTecnica">Cooperación Técnica</option>
-                <option value="Cooperación Financiera No Reembolsable">Cooperación Financiera No Reembolsable</option>
+                <option value="Seleccione">Financiera reembolsable</option>
+                <option value="Cooperación Financiera No Reembolsable">
+                  Cooperación financiera no reembolsable
+                </option>
               </select>
             </div>
 
-                        <div>
-              <label className="block text-sm font-semibold">Dirección</label>
+            {/* dependencias debe de tener opcion multiple  */}
+            <div>
+              <label className="block text-sm font-semibold">
+                Dependencias
+              </label>
               <Select
                 options={DIRECCION_OPTIONS}
-                value={DIRECCION_OPTIONS.find(opt => opt.value === form.departamento) || null}
-                onChange={opt => setForm(prev => ({ ...prev, departamento: opt ? opt.value : "" }))}
+                value={
+                  DIRECCION_OPTIONS.find(
+                    (opt) => opt.value === form.departamento
+                  ) || null
+                }
+                onChange={(opt) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    departamento: opt ? opt.value : "",
+                  }))
+                }
                 isClearable
                 placeholder="Buscar dirección..."
                 className="react-select-container"
@@ -665,33 +813,81 @@ export default function PDFExtractor() {
 
             <div>
               <label className="block text-sm font-semibold">Áreas</label>
-              <Select
+              <Select<AreaOption>
                 options={AREAS_OPTIONS}
-                value={AREAS_OPTIONS.find(opt => opt.value === form.areas) || null}
-                onChange={opt => setForm(prev => ({ ...prev, areas: opt ? opt.value : "" }))}
+                value={selectedAreaOption}
+                onChange={(option: AreaOption | null) => {
+                  setSelectedAreaOption(option);
+                  if (option?.value === "Otro") {
+                    setForm((prev) => ({ ...prev, areas: "" }));
+                  } else {
+                    setForm((prev) => ({
+                      ...prev,
+                      areas: option?.value || "",
+                    }));
+                    setCustomArea("");
+                  }
+                }}
                 isClearable
-                placeholder="Buscar área..."
+                placeholder="Seleccione área..."
                 className="react-select-container"
                 classNamePrefix="react-select"
               />
+
+              {selectedAreaOption?.value === "Otro" && (
+                <div className="mt-2">
+                  <input
+                    type="text"
+                    placeholder="Especifique el área"
+                    className="w-full border rounded p-2"
+                    value={customArea}
+                    onChange={(e) => {
+                      setCustomArea(e.target.value);
+                      setForm((prev) => ({ ...prev, areas: e.target.value }));
+                    }}
+                  />
+                </div>
+              )}
             </div>
+            <label className="block text-sm font-semibold">
+              Etapa de proyecto
+            </label>
 
+            <select
+              name="etapaDeProyecto"
+              className="w-full border rounded p-2"
+              value={form.etapaDeProyecto}
+              onChange={handleInputChange}
+            >
+              <option value="">Seleccione</option>
+              <option value="Formulación">Formulación</option>
+              <option value="Implementación">Implementación</option>
+              <option value="Negociación">Negociación</option>
+              <option value="Aprobado">Aprobado</option>
+              <option value="No aprobado">No aprobado</option>
+              <option value="Rechazado por fuente externa">
+                Rechazado por fuente externa
+              </option>
+              <option value="Suspendido por la fuente externa">
+                Suspendido por la fuente externa
+              </option>
+              <option value="Finalización">Finalización</option>{" "}
+            </select>
 
+<div>
+  <label className="block text-sm font-semibold">Región</label>
+  <Select
+    options={REGION_OPTIONS}
+    value={REGION_OPTIONS.find(opt => opt.value === form.Region) || null}
+    onChange={opt => setForm(prev => ({ ...prev, Region: opt ? opt.value : "" }))}
+    isClearable
+    placeholder="Seleccionar región..."
+    className="react-select-container"
+    classNamePrefix="react-select"
+  />
+</div>
+       
 
-            <div>
-              <label className="block text-sm font-semibold">Etapa del Proyecto</label>
-              <select
-                name="etapaDeProyecto"
-                className="w-full border rounded p-2"
-                value={form.etapaDeProyecto}
-                onChange={handleInputChange}
-              >
-                <option value="">Seleccione</option>
-                <option value="Implementacion">Implementación</option>
-                <option value="Finalización">Finalización</option>
-              </select>
-            </div>
-            
             <div>
               <label className="block text-sm font-semibold">Documentos</label>
               <input
@@ -702,12 +898,8 @@ export default function PDFExtractor() {
               />
             </div>
 
-
-
-
-
-                {/*Esta parte es de tematica por ahora no es necesaria */}
-              {/* <div>
+            {/*Esta parte es de tematica por ahora no es necesaria */}
+            {/* <div>
               <label className="block text-sm font-semibold">Temáticas</label>
               <select
                 name="tematicas"
@@ -736,10 +928,8 @@ export default function PDFExtractor() {
                 
               </select>
             </div> */}
-       
 
-
-              <div>
+            <div>
               <label className="block text-sm font-semibold">Resultados</label>
               <textarea
                 name="resultado"
@@ -753,14 +943,10 @@ export default function PDFExtractor() {
               />
             </div>
 
-           
-           
-            
-
-           
-            
             <div>
-              <label className="block text-sm font-semibold">Observaciones</label>
+              <label className="block text-sm font-semibold">
+                Observaciones
+              </label>
               <textarea
                 name="observaciones"
                 className="w-full border rounded p-2 min-h-[120px]"
@@ -772,8 +958,6 @@ export default function PDFExtractor() {
                 style={{ resize: "vertical" }}
               />
             </div>
-            
-
           </div>
           <div>
             <div className="flex flex-col gap-2 mb-4">
@@ -784,7 +968,17 @@ export default function PDFExtractor() {
               >
                 Guardar
               </button>
-              <label className="bg-gray-300 text-gray-800 px-4 py-2 rounded cursor-pointer text-center">
+
+              <button
+              
+                type="button"
+                className="bg-red-600 text-white px-4 py-2 rounded"
+                onClick={handleEliminar}
+              >
+                Eliminar
+              </button>
+              {/* Esta  parte se debe de arreglar es para que uno suba un PDF y los espacios se llenen automaticamente, antes servia y ahora no, debe ser algo simple pero ya me quede sin
+              tiempo de TCU<label className="bg-gray-300 text-gray-800 px-4 py-2 rounded cursor-pointer text-center">
                 Subir PDF
                 <input
                   type="file"
@@ -793,16 +987,14 @@ export default function PDFExtractor() {
                   onChange={handleFileChange}
                   className="hidden"
                 />
-              </label>
+              </label>  */}
             </div>
+
+            {/*  Esta parte es que en el PDF que se inserto se pueda ver de donde saco la informacion que muestre como un extracto mas grande con contexto
             <div className="bg-gray-100 p-4 rounded shadow-sm overflow-auto h-full md:max-h-[500px] sticky top-6">
-              <h2 className="text-lg font-semibold mb-2">
-                Texto original
-              </h2>
-              <pre className="whitespace-pre-wrap text-sm">
-                {outputSnippet}
-              </pre>
-            </div>
+              <h2 className="text-lg font-semibold mb-2">Texto original</h2>
+              <pre className="whitespace-pre-wrap text-sm">{outputSnippet}</pre>
+            </div>  */}
           </div>
         </div>
       </div>
@@ -812,7 +1004,6 @@ export default function PDFExtractor() {
 
 function formatDate(dateString: string | null | undefined) {
   if (!dateString) return "";
-  // Handles both ISO and yyyy-MM-dd
   const d = new Date(dateString);
   if (isNaN(d.getTime())) return "";
   return d.toISOString().slice(0, 10);
@@ -820,5 +1011,7 @@ function formatDate(dateString: string | null | undefined) {
 
 function formatMoney(n: any) {
   if (n === null || n === undefined || n === "") return "";
-  return `US$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+  return `US$${Number(n).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+  })}`;
 }
